@@ -11,7 +11,7 @@ class Foo extends Struct {
     a: number;
 }
 
-const foo = new Foo;
+const foo = new Foo();
 
 foo.a = 5;
 console.log(Struct.bufferOf(foo)); // <Buffer 05>
@@ -21,3 +21,5 @@ foo.a = 300;
 console.log(foo.a); // 44 because 300 - 256 = 44. It overflows
 console.log(Struct.bufferOf(foo)); // <Buffer 2c>
 ```
+
+ToDo; Write proper readme file, checkout the test [source code](https://github.com/jaenster/ts-structs/blob/master/test/binary-class.spec.ts)
