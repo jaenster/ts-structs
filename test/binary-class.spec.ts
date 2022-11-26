@@ -1,6 +1,9 @@
-import {Struct} from "../src";
+import {Heap, Struct} from "../src";
 import {CString, EmbeddedStruct, Int8, UInt16, UInt32, UInt8} from "../src";
+import {List} from "../src/buildin/list";
+import {getPointer} from "../src/maps";
 
+globalThis.console = require('console');
 describe('binary class', () => {
 
     it('binary class', () => {
@@ -178,16 +181,70 @@ describe('binary class', () => {
         expect(instance).toBeDefined();
         expect(instance.b).toBe(5);
     })
+
+    it('supports list', () => {
+        class Foo extends Struct {
+            @UInt8
+            a: number
+        }
+        const list = new List<Foo>();
+
+        list.add(new Foo());
+        list.add(new Foo());
+        list.add(new Foo());
+        list.add(new Foo());
+        list.add(new Foo());
+        list.add(new Foo());
+
+        const nodes = [];
+        let i = 0;
+        list.forEach((v, node) => {
+            v.a = i++;
+            nodes.push([node, v, v.a, getPointer(v)])
+        })
+
+        i = 0;
+        for(const [current, node] of list) {
+            expect(current).toBeTruthy();
+            const ptr = getPointer(current);
+            console.log(ptr, '===', nodes[i][3])
+            expect(ptr).toBe(nodes[i][3])
+            expect(current.a).toBe(i++);
+            if (i < 6) {
+                expect(node.next).toBeTruthy()
+            } else {
+                expect(node.next).toBeFalsy()
+            }
+        }
+
+
+        {
+            const values = [];
+            for (const [foo] of list) values.push(foo.a)
+            expect(values).toEqual([0,1,2,3,4,5]);
+        }
+        { // remove first
+            list.remove(nodes[0][1])
+            const values = [];
+            for (const [foo] of list) values.push(foo.a)
+            expect(values).toEqual([1,2,3,4,5]);
+        }
+        { // remove middle
+            list.remove(nodes[2][1])
+            const values = [];
+            for (const [foo] of list) values.push(foo.a)
+            expect(values).toEqual([1,3,4,5]);
+
+        }
+        { // remove last
+            list.remove(nodes[5][1])
+            const values = [];
+            for (const [foo] of list) {
+                values.push(foo.a)
+            }
+            expect(values).toEqual([1,3,4]);
+        }
+    })
 })
 
 
-class Foo extends Struct {
-    @UInt8
-    a: number;
-}
-
-const foo = new Foo;
-foo.a = 5;
-
-// <Buffer 05>
-console.log(Struct.bufferOf(foo));

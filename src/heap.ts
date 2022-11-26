@@ -9,6 +9,7 @@ enum Flags {
 function isSet(field: number, binary: number) {
   return (field & binary) === binary;
 }
+
 function notSet(field: number, binary: number) {
   return (field & binary) === 0;
 }
@@ -29,11 +30,9 @@ export class Heap {
     // Implicit malloc own size
     const buffer = Buffer.from(this.heap, 0, this.selfSize);
 
-
-    bufferMap.set(this, buffer)
-    blockMap.set(buffer, [new WeakRef(this), 0])
-
     const {size} = settingsMap.get(Object.getPrototypeOf(this));
+    bufferMap.set(this, buffer)
+    blockMap.set(buffer, [new WeakRef(this), 0, size])
     this.markTaken(0, size);
 
     Atomics.store(buffer, 0, 1);
@@ -45,7 +44,7 @@ export class Heap {
   protected isFree(from: number, size: number) {
     const view = new Uint8Array(this.flags)
     for (let i = 0; i < size; i++) {
-      if (isSet(view[from+i], Flags.TAKEN)) {
+      if (isSet(view[from + i], Flags.TAKEN)) {
         return false;
       }
     }
@@ -55,14 +54,14 @@ export class Heap {
   protected markTaken(from: number, size: number) {
     const view = new Uint8Array(this.flags)
     for (let i = 0; i < size; i++) {
-      view[from+i] |= Flags.TAKEN;
+      view[from + i] |= Flags.TAKEN;
     }
   }
 
   protected markFree(from: number, size: number) {
     const view = new Uint8Array(this.flags)
     for (let i = 0; i < size; i++) {
-      view[from+i] &= (0xFF ^ Flags.TAKEN);
+      view[from + i] &= (0xFF ^ Flags.TAKEN);
     }
   }
 
@@ -74,20 +73,25 @@ export class Heap {
         if (this.isFree(i, Math.min(size / 8, 1))) {
           // found space
           this.markTaken(i, size);
-          const buffer = Buffer.from(this.heap, i, size)
-
-          // store data
-          const blockData = blockMap.get(buffer);
-          blockData[0] = new WeakRef(heap);
-          blockData[1] = i;
-
-          return buffer;
+          return this.getSlice(i, size);
         }
       }
       throw Error('Insufficient space');
     } finally {
       lock.unlock()
     }
+  }
+
+  getSlice(from: number, to: number) {
+    const buffer = Buffer.from(this.heap, from, to)
+
+    // store data
+    const blockData = blockMap.get(buffer);
+    blockData[0] = new WeakRef(heap);
+    blockData[1] = from;
+    blockData[2] = to;
+
+    return buffer;
   }
 
   free(obj: object) {
@@ -99,12 +103,12 @@ export class Heap {
       }
 
       const buffer = bufferMap.get(obj);
-      const [heap, offset] = blockMap.get(buffer)
+      const [heap, offset, size] = blockMap.get(buffer)
       if (heap?.deref() !== this) {
         return; // Not part of this heap
       }
 
-      this.markFree(offset, buffer.byteLength);
+      this.markFree(offset, size);
     } finally {
       lock.unlock();
     }

@@ -1,8 +1,9 @@
 import {WeakMapExt} from "map-ext";
 import {Heap} from "./heap";
 
-export const blockMap = new WeakMapExt<Buffer, [WeakRef<Heap>, number]>(() => {
-  return [undefined, NaN] as any;
+export type Block = [wkheap: WeakRef<Heap>, start: number, size: number]
+export const blockMap = new WeakMapExt<Buffer, Block>(() => {
+  return [undefined, NaN, NaN] as any;
 })
 
 type Settings = {
@@ -19,3 +20,17 @@ export const bufferMap = new WeakMapExt<object, Buffer>((source) => {
 });
 
 export const settingsMap = new WeakMapExt<object, Settings>(() => ({values: [], size: 0}));
+
+export const getPointer = (obj: any) => {
+  if (bufferMap.has(obj)) {
+    const bm = blockMap.get(bufferMap.get(obj));
+    return bm[1];
+  }
+}
+
+export const getHeap = (obj: any) => {
+  if (bufferMap.has(obj)) {
+    const bm = blockMap.get(bufferMap.get(obj));
+    return bm?.[0]?.deref();
+  }
+}

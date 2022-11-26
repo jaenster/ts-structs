@@ -22,8 +22,6 @@ export class Lock {
       }
       Atomics.wait(this.view, offset, 0);
     }
-
-    console.log(this.mutex);
   }
 
   unlock() {

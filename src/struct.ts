@@ -1,13 +1,20 @@
 import type {Heap} from "./heap";
 import {bufferMap, settingsMap} from "./maps";
 
-export class Struct {
+export class Struct<T=any> {
   static get size() {
     return 0;
   }
 
   get size() {
     return 0;
+  }
+
+  constructor(heap?:Heap) {
+    heap ??= globalThis.GlobalHeap;
+    const {size} = settingsMap.get(Object.getPrototypeOf(this))
+    const buffer = heap.malloc(size);
+    bufferMap.set(this, buffer)
   }
 
   static from<T extends typeof Struct>(this: T, buffer: Buffer | Struct): InstanceType<T> {
@@ -21,7 +28,7 @@ export class Struct {
     return bufferMap.get(struct);
   }
 
-  static new<T extends Struct>(this: (new(...a: any[]) => T), heap?: Heap) {
+  static new<T extends Struct>(this: (new(...a: any[]) => T), heap?: Heap): T {
     heap ??= globalThis.GlobalHeap;
     const {size} = settingsMap.get(this.prototype)
     const buffer = heap.malloc(size);
@@ -36,5 +43,11 @@ export class Struct {
 
     bufferMap.set(instance, buffer);
     return instance;
+  }
+
+  valueOf() {
+    const buffer = bufferMap.get(this)
+    if (!buffer) return null;
+
   }
 }
